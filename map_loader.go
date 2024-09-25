@@ -31,7 +31,7 @@ type Map struct {
 	CameraX, CameraY float64
 }
 
-func Load(path, assetsTiledPath, assetsAsepritePath string) (*Map, error) {
+func Load(path, assetsTiledPath, assetsAsepritePath string, cellWidth, cellHeigh int) (*Map, error) {
 	// Step 1: Initialize the map and tileset variables
 	var m = &Map{}
 	var err error
@@ -45,7 +45,7 @@ func Load(path, assetsTiledPath, assetsAsepritePath string) (*Map, error) {
 	}
 
 	// Step 2. Create space resolv for the map
-	m.createSpace()
+	m.createSpace(cellWidth, cellHeigh)
 
 	// Step 3. Get the tileset (you must have saved it separately in the Tiled editor, and not embedded)
 	// it uses only the the first tileset for now.
