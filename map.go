@@ -193,11 +193,9 @@ func (m *Map) AddObject(o Object) {
 	m.Objects = append(m.Objects, o)
 }
 
-func (m *Map) createSpace() {
+func (m *Map) createSpace(spaceCellWidth, spaceCellHeight int) {
 	spaceWidth := m.TiledMap.Width * m.TiledMap.TileWidth
 	spaceHeight := m.TiledMap.Height * m.TiledMap.TileHeight
-	spaceCellWidth := 16
-	spaceCellHeight := 16
 	m.Space = resolv.NewSpace(spaceWidth, spaceHeight, spaceCellWidth, spaceCellHeight)
 }
 
