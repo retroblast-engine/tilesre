@@ -1,107 +1,32 @@
-package maploader
+package tilesre
 
 import (
 	"fmt"
-	"image"
-	"image/color"
-	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/lafriks/go-tiled"
 	"github.com/solarlune/resolv"
 )
 
-type CustomShape struct {
-	X      float64
-	Y      float64
-	Width  float64
-	Height float64
+// Map represents the game map with all its components
+type Map struct {
+	TiledMap               *tiled.Map
+	Tileset                *tiled.Tileset
+	TilesetImage           *ebiten.Image
+	Tiles                  map[int]Tile
+	AnimatedTiles          map[int]*Animation
+	BackgroundImage        *ebiten.Image
+	BackgroundImageOffsetX float64
+	BackgroundImageOffsetY float64
+	Objects                []Object
+	Space                  *resolv.Space
+	CameraX, CameraY       float64
 }
 
-// Tile represents an 8x8 image used to build backgrounds or moving objects.
-type Tile struct {
-	ID           int
-	Image        *ebiten.Image
-	HasAnimation bool
-	HasCustomCol bool
-	Shape        CustomShape
-}
-
-// Animation represents a series of tiles that make up an animation.
-type Animation struct {
-	Frames     []int
-	Index      int
-	Duration   []time.Duration // how long the current frame should be displayed
-	LastChange time.Time       // is updated to the current time each time the frame changes
-}
-
-// --- Needed for Space Resolv --- //
-// ------------------------------------------------------------------------------- //
-// Object represents a tile that can move independently from the background.
-type Object struct {
-	Physics *resolv.Object
-	Sprite  *Sprite
-}
-
-// Sprite represents an individual sprite in a scene.
-type Sprite struct {
-	X, Y       int
-	TileID     int
-	Attributes []Option
-}
-
-// Option represents an attribute of an Object.
-type Option struct {
-	IsBehind     bool
-	XFlip, YFlip bool
-}
-
-/// ------------------------------------------------------------------------------- //
-
-func hexToRGBA(hex string) (color.RGBA, error) {
-	var r, g, b uint8
-	if hex[0] == '#' {
-		hex = hex[1:]
-	}
-	_, err := fmt.Sscanf(hex, "%02x%02x%02x", &r, &g, &b)
-	if err != nil {
-		return color.RGBA{}, err
-	}
-	return color.RGBA{R: r, G: g, B: b, A: 0xFF}, nil
-}
-
-func replaceColor(img image.Image, oldColor color.Color) *image.RGBA {
-	bounds := img.Bounds()
-	newImg := image.NewRGBA(bounds)
-
-	oldR, oldG, oldB, oldA := oldColor.RGBA()
-
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, a := img.At(x, y).RGBA()
-			if r == oldR && g == oldG && b == oldB && a == oldA {
-				newImg.Set(x, y, color.Transparent)
-			} else {
-				newImg.Set(x, y, img.At(x, y))
-			}
-		}
-	}
-
-	return newImg
-}
-
-func (m *Map) tileToImage(tile *tiled.LayerTile) (*ebiten.Image, error) {
-	if m.TilesetImage == nil {
-		return nil, nil
-	}
-
-	tileX := (int(tile.ID)%m.Tileset.Columns)*(m.Tileset.TileWidth+m.Tileset.Spacing) + m.Tileset.Margin
-	tileY := (int(tile.ID)/m.Tileset.Columns)*(m.Tileset.TileHeight+m.Tileset.Spacing) + m.Tileset.Margin
-
-	// Extract the tile image from the tileset image
-	tileImage := m.TilesetImage.SubImage(image.Rect(tileX, tileY, tileX+m.Tileset.TileWidth, tileY+m.Tileset.TileHeight)).(*ebiten.Image)
-
-	return tileImage, nil
+func (m *Map) createSpace(spaceCellWidth, spaceCellHeight int) {
+	spaceWidth := m.TiledMap.Width * m.TiledMap.TileWidth
+	spaceHeight := m.TiledMap.Height * m.TiledMap.TileHeight
+	m.Space = resolv.NewSpace(spaceWidth, spaceHeight, spaceCellWidth, spaceCellHeight)
 }
 
 func (m *Map) ProcessLayer(index int, layer *tiled.Layer) {
@@ -158,70 +83,33 @@ func (m *Map) verifyLayerDimensions(index int) {
 	fmt.Printf("Layer %d has %d rows and %d columns\n", index, rows, columns)
 }
 
-func (m *Map) tilePosition(num int) (int, int) {
-	x := (num % m.TiledMap.Width) * m.TiledMap.TileWidth
-	y := (num / m.TiledMap.Width) * m.TiledMap.TileHeight
-
-	return x, y
-}
-
-func (m *Map) createObject(x, y int, tile Tile, layerName string) Object {
-	if tile.HasCustomCol {
-		tileObject := resolv.NewObject(float64(x)+tile.Shape.X, float64(y)+tile.Shape.Y, tile.Shape.Width, tile.Shape.Height, layerName)
-		return Object{
-			Physics: tileObject,
-			Sprite: &Sprite{
-				X:      x,
-				Y:      y,
-				TileID: tile.ID,
-			},
-		}
-	}
-
-	tileObject := resolv.NewObject(float64(x), float64(y), float64(m.TiledMap.TileWidth), float64(m.TiledMap.TileHeight), layerName)
-	return Object{
-		Physics: tileObject,
-		Sprite: &Sprite{
-			X:      x,
-			Y:      y,
-			TileID: tile.ID,
-		},
-	}
-}
-
-func (m *Map) AddObject(o Object) {
-	m.Objects = append(m.Objects, o)
-}
-
-func (m *Map) createSpace(spaceCellWidth, spaceCellHeight int) {
-	spaceWidth := m.TiledMap.Width * m.TiledMap.TileWidth
-	spaceHeight := m.TiledMap.Height * m.TiledMap.TileHeight
-	m.Space = resolv.NewSpace(spaceWidth, spaceHeight, spaceCellWidth, spaceCellHeight)
-}
-
 // MapDraw draws the map on the screen.
 func (m *Map) MapDraw(screen *ebiten.Image, camX, camY float64) {
 	// Draw the background image
 	// ---------------------------------------------------------- //
-	op := &ebiten.DrawImageOptions{}
 
-	// Get the original width and height of the image
-	originalWidth := m.BackgroundImage.Bounds().Dx()
-	// originalHeight := backgroundImage.Bounds().Dy()
+	// Draw the background image, if it exists
+	if m.BackgroundImage != nil {
+		op := &ebiten.DrawImageOptions{}
 
-	// Calculate the scaling factors for the X and Y axes
-	scaleX := 1000.0 / float64(originalWidth)
-	// scaleY := 0 / float64(originalHeight)
+		// Get the original width and height of the image
+		originalWidth := m.BackgroundImage.Bounds().Dx()
+		// originalHeight := backgroundImage.Bounds().Dy()
 
-	// Apply the scaling factors to the X and Y axes
-	op.GeoM.Scale(scaleX, 1)
+		// Calculate the scaling factors for the X and Y axes
+		scaleX := 1000.0 / float64(originalWidth)
+		// scaleY := 0 / float64(originalHeight)
 
-	// Translate the image to the desired position (optional)
-	op.GeoM.Translate(0, m.BackgroundImageOffsetY)
-	op.GeoM.Translate(camX, 0)
+		// Apply the scaling factors to the X and Y axes
+		op.GeoM.Scale(scaleX, 1)
 
-	// Draw the image with the applied scaling
-	screen.DrawImage(m.BackgroundImage, op)
+		// Translate the image to the desired position (optional)
+		op.GeoM.Translate(0, m.BackgroundImageOffsetY)
+		op.GeoM.Translate(camX, 0)
+
+		// Draw the image with the applied scaling
+		screen.DrawImage(m.BackgroundImage, op)
+	}
 	// End Draw the background image
 	// ---------------------------------------------------------- //
 
@@ -255,18 +143,4 @@ func (m *Map) MapDraw(screen *ebiten.Image, camX, camY float64) {
 
 	// End Draw the game objects
 	// ---------------------------------------------------------- //
-}
-
-// NextFrame returns the next frame of the animation and resets to the first frame if it's the last frame.
-func (s *Animation) NextFrame() int {
-	timePassed := time.Since(s.LastChange)
-	if timePassed >= s.Duration[s.Index] {
-		s.Index++
-		if s.Index >= len(s.Frames) {
-			s.Index = 0
-		}
-		s.LastChange = time.Now()
-	}
-
-	return s.Frames[s.Index]
 }
