@@ -6,6 +6,7 @@ import (
 	"image/color"
 )
 
+// hexToRGBA converts a hex color string to an RGBA color.
 func hexToRGBA(hex string) (color.RGBA, error) {
 	var r, g, b uint8
 	if hex[0] == '#' {
@@ -13,12 +14,13 @@ func hexToRGBA(hex string) (color.RGBA, error) {
 	}
 	_, err := fmt.Sscanf(hex, "%02x%02x%02x", &r, &g, &b)
 	if err != nil {
-		return color.RGBA{}, err
+		return color.RGBA{}, fmt.Errorf("invalid hex color: %w", err)
 	}
 
 	return color.RGBA{R: r, G: g, B: b, A: 0xFF}, nil
 }
 
+// replaceColor replaces all instances of oldColor in img with transparency.
 func replaceColor(img image.Image, oldColor color.Color) *image.RGBA {
 	bounds := img.Bounds()
 	newImg := image.NewRGBA(bounds)

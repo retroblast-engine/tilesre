@@ -9,7 +9,7 @@ import (
 	"github.com/lafriks/go-tiled"
 )
 
-// Load initializes and loads the map from the given paths
+// Load initializes and loads the map from the given paths.
 func Load(path, assetsTiledPath, assetsAsepritePath string, cellWidth, cellHeight int) (*Map, error) {
 	m := &Map{
 		Tiles:         make(map[int]Tile),

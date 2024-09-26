@@ -4,22 +4,22 @@ import "time"
 
 // Animation represents a series of tiles that make up an animation.
 type Animation struct {
-	Frames     []int
-	Index      int
-	Duration   []time.Duration // how long the current frame should be displayed
-	LastChange time.Time       // is updated to the current time each time the frame changes
+	Frames     []int           // Frames is a slice of tile IDs that make up the animation.
+	Index      int             // Index is the current frame index.
+	Duration   []time.Duration // Duration is how long each frame should be displayed.
+	LastChange time.Time       // LastChange is the time when the frame last changed.
 }
 
 // NextFrame returns the next frame of the animation and resets to the first frame if it's the last frame.
-func (s *Animation) NextFrame() int {
-	timePassed := time.Since(s.LastChange)
-	if timePassed >= s.Duration[s.Index] {
-		s.Index++
-		if s.Index >= len(s.Frames) {
-			s.Index = 0
+func (a *Animation) NextFrame() int {
+	timePassed := time.Since(a.LastChange)
+	if timePassed >= a.Duration[a.Index] {
+		a.Index++
+		if a.Index >= len(a.Frames) {
+			a.Index = 0
 		}
-		s.LastChange = time.Now()
+		a.LastChange = time.Now()
 	}
 
-	return s.Frames[s.Index]
+	return a.Frames[a.Index]
 }

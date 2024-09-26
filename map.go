@@ -23,33 +23,31 @@ type Map struct {
 	CameraX, CameraY       float64
 }
 
+// createSpace initializes the collision space
 func (m *Map) createSpace(spaceCellWidth, spaceCellHeight int) {
 	spaceWidth := m.TiledMap.Width * m.TiledMap.TileWidth
 	spaceHeight := m.TiledMap.Height * m.TiledMap.TileHeight
 	m.Space = resolv.NewSpace(spaceWidth, spaceHeight, spaceCellWidth, spaceCellHeight)
 }
 
-func (m *Map) ProcessLayer(index int, layer *tiled.Layer) {
-	fmt.Printf("Layer %d: %s\n", index, layer.Name)
-	countTiles := len(layer.Tiles)
-	fmt.Printf("Layer %d has %d tiles\n", index, countTiles)
-	m.verifyLayerDimensions(index)
+// ProcessLayer processes a single layer of the map
+func (m *Map) ProcessLayer(index int, layer *tiled.Layer) error {
+	if err := m.verifyLayerDimensions(); err != nil {
+		return fmt.Errorf("error verifying layer dimensions: %w", err)
+	}
 
 	// Iterate over the tiles
 	for num, tile := range layer.Tiles {
-
 		myTile := Tile{ID: int(tile.ID)}
 
 		// Add the tile to the space, if it is not nil
 		if !tile.IsNil() {
-
-			// 1. If the tile is not already in the map, add it
+			// If the tile is not already in the map, add it
 			if _, ok := m.Tiles[int(tile.ID)]; !ok {
-
 				// Get the image of the tile
 				tileImage, err := m.tileToImage(tile)
 				if err != nil {
-					panic(err)
+					return fmt.Errorf("error converting tile to image: %w", err)
 				}
 
 				// Create the tile
@@ -59,8 +57,7 @@ func (m *Map) ProcessLayer(index int, layer *tiled.Layer) {
 				m.Tiles[int(tile.ID)] = myTile
 			}
 
-			// 2. Add the object to the space
-
+			// Add the object to the space
 			// Get the position of the tile
 			x, y := m.tilePosition(num)
 
@@ -71,34 +68,30 @@ func (m *Map) ProcessLayer(index int, layer *tiled.Layer) {
 			m.AddObject(o)
 		}
 	}
+	return nil
 }
 
-func (m *Map) verifyLayerDimensions(index int) {
+// verifyLayerDimensions checks if the layer dimensions match the map dimensions
+func (m *Map) verifyLayerDimensions() error {
 	rows := m.TiledMap.Height
 	columns := m.TiledMap.Width
 	if rows != m.TiledMap.Height || columns != m.TiledMap.Width {
-		panic("Layer dimensions do not match map dimensions")
+		return fmt.Errorf("layer dimensions do not match map dimensions")
 	}
-
-	fmt.Printf("Layer %d has %d rows and %d columns\n", index, rows, columns)
+	return nil
 }
 
-// MapDraw draws the map on the screen.
+// MapDraw draws the map on the screen
 func (m *Map) MapDraw(screen *ebiten.Image, camX, camY float64) {
 	// Draw the background image
-	// ---------------------------------------------------------- //
-
-	// Draw the background image, if it exists
 	if m.BackgroundImage != nil {
 		op := &ebiten.DrawImageOptions{}
 
 		// Get the original width and height of the image
 		originalWidth := m.BackgroundImage.Bounds().Dx()
-		// originalHeight := backgroundImage.Bounds().Dy()
 
 		// Calculate the scaling factors for the X and Y axes
 		scaleX := 1000.0 / float64(originalWidth)
-		// scaleY := 0 / float64(originalHeight)
 
 		// Apply the scaling factors to the X and Y axes
 		op.GeoM.Scale(scaleX, 1)
@@ -110,21 +103,15 @@ func (m *Map) MapDraw(screen *ebiten.Image, camX, camY float64) {
 		// Draw the image with the applied scaling
 		screen.DrawImage(m.BackgroundImage, op)
 	}
-	// End Draw the background image
-	// ---------------------------------------------------------- //
 
-	// Start Draw the game objects
-	// ---------------------------------------------------------- //
-	// Loop through all of the game objects and draw their sprites
+	// Draw the game objects
 	for _, o := range m.Objects {
-
 		id := o.Sprite.TileID
 		img := m.Tiles[id].Image
 		if m.Tiles[id].HasAnimation {
 			// Check if it exists in the animation map
-			if _, ok := m.AnimatedTiles[id]; ok {
+			if anim, ok := m.AnimatedTiles[id]; ok {
 				// Get the next frame
-				anim := m.AnimatedTiles[id]
 				tileID := anim.NextFrame()
 				img = m.Tiles[tileID].Image
 			}
@@ -140,7 +127,4 @@ func (m *Map) MapDraw(screen *ebiten.Image, camX, camY float64) {
 		}
 		screen.DrawImage(img, op)
 	}
-
-	// End Draw the game objects
-	// ---------------------------------------------------------- //
 }

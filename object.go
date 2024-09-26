@@ -21,20 +21,16 @@ type Option struct {
 	XFlip, YFlip bool
 }
 
+// createObject creates a new Object with the given parameters.
 func (m *Map) createObject(x, y int, tile Tile, layerName string) Object {
+	var tileObject *resolv.Object
+
 	if tile.HasCustomCol {
-		tileObject := resolv.NewObject(float64(x)+tile.Shape.X, float64(y)+tile.Shape.Y, tile.Shape.Width, tile.Shape.Height, layerName)
-		return Object{
-			Physics: tileObject,
-			Sprite: &Sprite{
-				X:      x,
-				Y:      y,
-				TileID: tile.ID,
-			},
-		}
+		tileObject = resolv.NewObject(float64(x)+tile.Shape.X, float64(y)+tile.Shape.Y, tile.Shape.Width, tile.Shape.Height, layerName)
+	} else {
+		tileObject = resolv.NewObject(float64(x), float64(y), float64(m.TiledMap.TileWidth), float64(m.TiledMap.TileHeight), layerName)
 	}
 
-	tileObject := resolv.NewObject(float64(x), float64(y), float64(m.TiledMap.TileWidth), float64(m.TiledMap.TileHeight), layerName)
 	return Object{
 		Physics: tileObject,
 		Sprite: &Sprite{
@@ -45,6 +41,7 @@ func (m *Map) createObject(x, y int, tile Tile, layerName string) Object {
 	}
 }
 
+// AddObject adds a new Object to the map.
 func (m *Map) AddObject(o Object) {
 	m.Objects = append(m.Objects, o)
 }

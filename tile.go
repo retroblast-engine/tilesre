@@ -18,6 +18,7 @@ type Tile struct {
 	Shape        CustomShape
 }
 
+// CustomShape represents a custom collision shape for a tile.
 type CustomShape struct {
 	X      float64
 	Y      float64
@@ -25,6 +26,7 @@ type CustomShape struct {
 	Height float64
 }
 
+// tileToImage converts a tiled.LayerTile to an ebiten.Image.
 func (m *Map) tileToImage(tile *tiled.LayerTile) (*ebiten.Image, error) {
 	if m.TilesetImage == nil {
 		return nil, nil
@@ -39,6 +41,7 @@ func (m *Map) tileToImage(tile *tiled.LayerTile) (*ebiten.Image, error) {
 	return tileImage, nil
 }
 
+// tilePosition calculates the position of a tile in the map.
 func (m *Map) tilePosition(num int) (int, int) {
 	x := (num % m.TiledMap.Width) * m.TiledMap.TileWidth
 	y := (num / m.TiledMap.Width) * m.TiledMap.TileHeight
@@ -46,7 +49,7 @@ func (m *Map) tilePosition(num int) (int, int) {
 	return x, y
 }
 
-// processTiles processes custom collision shapes and animations for tiles
+// processTiles processes custom collision shapes and animations for tiles.
 func (m *Map) processTiles() error {
 	for _, customTile := range m.Tileset.Tiles {
 		if len(customTile.ObjectGroups) > 0 {
