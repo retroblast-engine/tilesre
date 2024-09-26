@@ -1,23 +1,24 @@
 package tilesre
 
 import (
+	"embed"
 	"fmt"
 	"image/png"
-	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/lafriks/go-tiled"
 )
 
 // Load initializes and loads the map from the given paths.
-func Load(path, assetsTiledPath, assetsAsepritePath string, cellWidth, cellHeight int) (*Map, error) {
+func Load(assets embed.FS, path, assetsTiledPath, assetsAsepritePath string, cellWidth, cellHeight int) (*Map, error) {
 	m := &Map{
 		Tiles:         make(map[int]Tile),
 		AnimatedTiles: make(map[int]*Animation),
 	}
 
 	var err error
-	m.TiledMap, err = tiled.LoadFile(path)
+	option := tiled.WithFileSystem(assets)
+	m.TiledMap, err = tiled.LoadFile(path, option)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing map: %w", err)
 	}
@@ -29,7 +30,7 @@ func Load(path, assetsTiledPath, assetsAsepritePath string, cellWidth, cellHeigh
 	}
 
 	m.Tileset = m.TiledMap.Tilesets[0]
-	file, err := os.Open(assetsTiledPath + m.Tileset.Image.Source)
+	file, err := assets.Open(assetsTiledPath + m.Tileset.Image.Source)
 	if err != nil {
 		return nil, fmt.Errorf("error opening tileset image: %w", err)
 	}
