@@ -44,11 +44,13 @@ func Load(assets fs.FS, path, assetsTiledPath, assetsAsepritePath string, cellWi
 		return nil, fmt.Errorf("error decoding tileset image: %w", err)
 	}
 
-	transColor, err := hexToRGBA(m.Tileset.Image.Trans.String())
-	if err != nil {
-		return nil, fmt.Errorf("error converting hex to RGBA: %w", err)
+	if m.Tileset.Image.Trans != nil {
+		transColor, err := hexToRGBA(m.Tileset.Image.Trans.String())
+		if err != nil {
+			return nil, fmt.Errorf("error converting hex to RGBA: %w", err)
+		}
+		tmpTilesetImage = replaceColor(tmpTilesetImage, transColor)
 	}
-	tmpTilesetImage = replaceColor(tmpTilesetImage, transColor)
 
 	m.TilesetImage = ebiten.NewImageFromImage(tmpTilesetImage)
 
