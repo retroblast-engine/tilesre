@@ -16,6 +16,14 @@ type Tile struct {
 	HasAnimation bool
 	HasCustomCol bool
 	Shape        CustomShape
+	Properties   map[string]Property
+}
+
+// Property represents a single property with its name, value, and type.
+type Property struct {
+	Name  string
+	Value string
+	Type  string
 }
 
 // CustomShape represents a custom collision shape for a tile.
@@ -49,8 +57,39 @@ func (m *Map) tilePosition(num int) (int, int) {
 	return x, y
 }
 
+func parseProperties(properties tiled.Properties) map[string]Property {
+	result := make(map[string]Property)
+	for _, prop := range properties {
+		result[prop.Name] = Property{
+			Name:  prop.Name,
+			Value: prop.Value,
+			Type:  prop.Type,
+		}
+	}
+	return result
+}
+
 // processTiles processes custom collision shapes and animations for tiles.
 func (m *Map) processTiles() error {
+	// Parsing tiles from TMX that have Properties
+	for _, customTile := range m.Tileset.Tiles {
+		tile := Tile{
+			ID:           int(customTile.ID),
+			HasCustomCol: false,
+			Properties:   parseProperties(customTile.Properties),
+		}
+
+		tileImage, err := m.tileToImage(&tiled.LayerTile{ID: uint32(tile.ID)})
+		if err != nil {
+			return fmt.Errorf("error converting tile to image: %w", err)
+		}
+		tile.Image = tileImage
+
+		m.Tiles[int(customTile.ID)] = tile
+
+	}
+
+	// Parsing tiles from TMX that have custom collision data
 	for _, customTile := range m.Tileset.Tiles {
 		if len(customTile.ObjectGroups) > 0 {
 			for _, obj := range customTile.ObjectGroups {
@@ -66,6 +105,7 @@ func (m *Map) processTiles() error {
 					ID:           int(customTile.ID),
 					HasCustomCol: true,
 					Shape:        customShape,
+					Properties:   parseProperties(customTile.Properties),
 				}
 
 				tileImage, err := m.tileToImage(&tiled.LayerTile{ID: uint32(tile.ID)})
@@ -79,11 +119,13 @@ func (m *Map) processTiles() error {
 		}
 	}
 
+	// Parsing tiles from TMX that have Animation
 	for _, animatedTile := range m.Tileset.Tiles {
 		if len(animatedTile.Animation) > 0 {
 			tile := Tile{
 				ID:           int(animatedTile.ID),
 				HasAnimation: true,
+				Properties:   parseProperties(animatedTile.Properties), // Parse properties
 			}
 
 			tileImage, err := m.tileToImage(&tiled.LayerTile{ID: uint32(tile.ID)})

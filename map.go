@@ -2,6 +2,7 @@ package tilesre
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/lafriks/go-tiled"
@@ -62,7 +63,7 @@ func (m *Map) ProcessLayer(index int, layer *tiled.Layer) error {
 			x, y := m.tilePosition(num)
 
 			// Create the object
-			o := m.createObject(x, y, m.Tiles[int(tile.ID)], layer.Name)
+			o := m.createObject(x, y, m.Tiles[int(tile.ID)], layer.Name, m.Tiles[int(tile.ID)].Properties)
 
 			// Add object and tile
 			m.AddObject(o)
@@ -107,6 +108,12 @@ func (m *Map) MapDraw(screen *ebiten.Image, camX, camY float64) {
 	// Draw the game objects
 	for _, o := range m.Objects {
 		id := o.Sprite.TileID
+
+		if _, ok := m.Tiles[id]; !ok {
+			fmt.Println("Error: The tile", id, "is not used in the map, so there is no object associated with it yet")
+			os.Exit(1)
+		}
+
 		img := m.Tiles[id].Image
 		if m.Tiles[id].HasAnimation {
 			// Check if it exists in the animation map
